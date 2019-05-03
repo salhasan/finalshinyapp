@@ -10,6 +10,7 @@ library(C50)
 library(class)
 library(e1071)
 library(shiny)
+library(randomcoloR)
 
 # preprocessing the raw data
 bcancer <- read.csv('https://raw.githubusercontent.com/melinabifx/finalprojectbreastcancer/master/data_new.csv')
@@ -47,9 +48,9 @@ ui <- fluidPage(
     # Sidebar with a slider input
     sidebarPanel(
       radioButtons("pm","Prediction Method:",
-                   c("knn" = "KNN",
-                     "nb" = "NB",
-                     "dt"= "DT")),
+                   c("k-Nearest Neighbors" = "KNN",
+                     "Naive Bayes" = "NB",
+                     "Decision Tree C5.0"= "DT")),
       actionButton("plotButtonKNN","run KNN"),
       actionButton("plotButtonNB","run NB")
       
