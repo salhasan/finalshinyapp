@@ -41,7 +41,7 @@ bc_norm$diagnosis <- bc$diagnosis
 ui <- fluidPage(
   
   # Application title
-  titlePanel("Hello Shiny!"),
+  titlePanel("Breast Cancer Prediction"),
   
   sidebarLayout(
     
@@ -51,6 +51,9 @@ ui <- fluidPage(
                    c("k-Nearest Neighbors" = "KNN",
                      "Naive Bayes" = "NB",
                      "Decision Tree C5.0"= "DT")),
+      sliderInput("ptrain", "Percentage of training data:",
+                  min = 0.10, max = 0.99, value = 0.80
+      ),
       actionButton("plotButtonKNN","run KNN"),
       actionButton("plotButtonNB","run NB")
       
@@ -71,23 +74,7 @@ server <- function(input, output) {
   
 
   
-  #divide the data into training and testing sets corresponding to 80% and 20% of data respectively.
-  n_rows <- nrow(bc_norm)
-  n_train <- round(0.8*n_rows)
-  n_test <- n_rows - n_train
   
-  #creating the data structures corresponding to the outcome of the experiment to be predicted by ML algorithm.
-  bc_train_label <- bc_norm[1:n_train,"diagnosis"]
-  bc_test_label <- bc_norm[(n_train+1):n_rows,"diagnosis"]
-  
-  
-  #check if the outcome are numeric, because we want to predict numeric outcomes.
-  #is.numeric(bc_train_label)        #should be TRUE
-  #is.numeric(bc_test_label)         #should be TRUE
-  
-  #creating the testing data used as the input data by ML algorithm to predict the outcome. Need to ignore predict labels.
-  bc_train_data <- bc_norm[1:n_train,-11]
-  bc_test_data <- bc_norm[(n_train+1):n_rows,-11]
   
   
   knnplot <- reactiveVal(NULL) 
@@ -110,14 +97,31 @@ server <- function(input, output) {
   
   output$distPlot <- renderPlot({
     
+    
+    #divide the data into training and testing sets corresponding to 80% and 20% of data respectively.
+    n_rows <- nrow(bc_norm)
+    n_train <- round(input$ptrain *n_rows)
+    n_test <- n_rows - n_train
+    
+    #creating the data structures corresponding to the outcome of the experiment to be predicted by ML algorithm.
+    bc_train_label <- bc_norm[1:n_train,"diagnosis"]
+    bc_test_label <- bc_norm[(n_train+1):n_rows,"diagnosis"]
+    
+    
+    #creating the testing data used as the input data by ML algorithm to predict the outcome. Need to ignore predict labels.
+    bc_train_data <- bc_norm[1:n_train,-11]
+    bc_test_data <- bc_norm[(n_train+1):n_rows,-11]
+    
     pm <- switch(input$pm,
                  KNN = knn(bc_train_data, bc_test_data, bc_train_label,k=2),
                  NB = predict(naiveBayes(bc_train_data,bc_train_label),bc_test_data ),
                  DT =  predict(C5.0(x=bc_train_data, y=factor(bc_train_label)), bc_test_data)
                  )
+    
+    y <- n_test*0.8
     #knn
     if (!is.null(pm) )
-      plot(pm, ylim=c(0,75) ,col= distinctColorPalette(k = 100, altCol = FALSE, runTsne = FALSE),cex.axis=1.5)
+      plot(pm, main = "Prediction",ylim=c(0,y) ,col= distinctColorPalette(k = 1000, altCol = FALSE, runTsne = FALSE),cex.axis=1.5)
     
   })
   
