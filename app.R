@@ -13,7 +13,7 @@ library(shiny)
 library(randomcoloR)
 
 # preprocessing the raw data
-bcancer <- read.csv('https://raw.githubusercontent.com/melinabifx/finalprojectbreastcancer/master/data_new.csv')
+bcancer <- read.csv('https://raw.githubusercontent.com/salhasan/finalshinyapp/master/data.csv')
 
 bcancer$diagnosis <- factor(bcancer$diagnosis,levels=c("B","M"), labels=c("Benign","Malignant"))
 
@@ -24,19 +24,17 @@ bcancer$diagnosis <- factor(bcancer$diagnosis,levels=c("B","M"), labels=c("Benig
 set.seed(1)
 bc <- bcancer[sample(nrow(bcancer)),]
 
+
 #remove all the rows that contain missing data
 bc <- na.omit(bc)
 
 #normalize the data
-bc_norm <- as.data.frame(apply(bc[, -11], 2, function(x) (x - min(x))/(max(x)-min(x))))
+bc_norm <- as.data.frame(apply(bc[, 1:30], 2, function(x) (x - min(x))/(max(x)-min(x))))
 bc_norm$diagnosis <- bc$diagnosis
 
 
 
-
-
-
-# Define UI for application that draws a histogram
+# Define UI for application that draws a plot
 
 ui <- fluidPage(
   
@@ -45,56 +43,39 @@ ui <- fluidPage(
   
   sidebarLayout(
     
-    # Sidebar with a slider input
+    # Sidebar with a radioButtons and 2 slider inputs
     sidebarPanel(
-      radioButtons("pm","Prediction Method:",
+      radioButtons("pm","Machine Learning Prediction Method:",
                    c("k-Nearest Neighbors" = "KNN",
                      "Naive Bayes" = "NB",
                      "Decision Tree C5.0"= "DT")),
       sliderInput("ptrain", "Percentage of training data:",
                   min = 0.10, max = 0.99, value = 0.80
       ),
-      actionButton("plotButtonKNN","run KNN"),
-      actionButton("plotButtonNB","run NB")
+      sliderInput("nattrib", "Number of Attributes:",
+                  min = 2, max = 30, value = 15
+      )
       
     ),
     
-    # Show a plot of the generated distribution
+    
     mainPanel(
-      plotOutput("distPlot", 
-                 hover = hoverOpts(id = "plot_hover", delayType = "throttle"))
-      #plotOutput("distPlotKNN"),
-      #plotOutput("distPlotNB")
+      # Show a plot of the generated prediction
+      plotOutput("distPlot"),
+      
+      # Show Confusion Matrix & summary of the generated prediction
+      tabsetPanel(position = "below",
+                  tabPanel("Confusion Matrix", verbatimTextOutput("table")),
+                  tabPanel("Summary", verbatimTextOutput("summary"))
+      )
     )
   )
 )
 
-# Define server logic required to draw a histogram
+# Define server logic required to draw a plot
 server <- function(input, output) {
   
-
-  
-  
-  
-  
-  knnplot <- reactiveVal(NULL) 
-  
-  nbplot <- reactiveVal(NULL)
-  
- # observeEvent(input$plotButtonKNN,{
-    # knn
-  #  knnVal <- knn(bc_train_data, bc_test_data, bc_train_label,k=2)
-  #  knnplot(knnVal)
-    
-
-  #  })
-  #observeEvent(input$plotButtonNB,{
-    # nb
-  #  nbVal <- predict(naiveBayes(bc_train_data,bc_train_label),bc_test_data )
-  #  nbplot(nbVal)
-  #})
-    
-  
+  # display plot
   output$distPlot <- renderPlot({
     
     
@@ -109,19 +90,42 @@ server <- function(input, output) {
     
     
     #creating the testing data used as the input data by ML algorithm to predict the outcome. Need to ignore predict labels.
-    bc_train_data <- bc_norm[1:n_train,-11]
-    bc_test_data <- bc_norm[(n_train+1):n_rows,-11]
+    bc_train_data <- bc_norm[1:n_train,1:input$nattrib]
+    bc_test_data <- bc_norm[(n_train+1):n_rows,1:input$nattrib]
     
-    pm <- switch(input$pm,
-                 KNN = knn(bc_train_data, bc_test_data, bc_train_label,k=2),
+    # run ML prediction 
+    predicted <- switch(input$pm,
+                 KNN = knn(bc_train_data, bc_test_data, bc_train_label,k=4),
                  NB = predict(naiveBayes(bc_train_data,bc_train_label),bc_test_data ),
                  DT =  predict(C5.0(x=bc_train_data, y=factor(bc_train_label)), bc_test_data)
                  )
+   
+     # set y axis size
+    y <- n_test*0.9
     
-    y <- n_test*0.8
-    #knn
-    if (!is.null(pm) )
-      plot(pm, main = "Prediction",ylim=c(0,y) ,col= distinctColorPalette(k = 1000, altCol = FALSE, runTsne = FALSE),cex.axis=1.5)
+    # plot prediction
+    if (!is.null(predicted) )
+      plot(predicted, main = "Prediction",ylim=c(0,y) ,col= distinctColorPalette(k = 1000, altCol = FALSE, runTsne = FALSE),cex.axis=1.5)
+    
+    actual <- bc_test_label
+    cm <- table(predicted,actual)
+    
+    # print Confusion Matrix
+    output$table <- renderPrint({
+      cm
+    })
+    
+    # print summary
+    output$summary <- renderPrint({
+      
+      accuracy<- round((cm[1,1] + cm[2,2])/ (cm[1,1]+ cm[1,2] + cm[2,1] + cm[2,2]) * 100, digits = 2)
+      sensitivity<- round((cm[2,2] / (cm[2,2] + cm[2,1])) * 100, digits = 2)
+      specificity <- round((cm[1,1] / (cm[1,1] + cm[1,2])) * 100, digits = 2)
+      
+      summarymtx <- matrix(c("Sensitivity", "Specificity", "Accuracy"), ncol = 1, nrow =3)
+      summarymtx <- cbind(summarymtx, c(sensitivity,specificity,accuracy))
+      summarymtx
+    })
     
   })
   
@@ -129,22 +133,7 @@ server <- function(input, output) {
     cat("Hover (throttled):\n")
     str(input$plot_hover)
   })
-
   
-#   output$distPlotKNN <- renderPlot({
-     #knn
-#     if (!is.null(knnplot()) )
-#       plot(knnplot())
-   
-#   })
-   
-#   output$distPlotNB <- renderPlot({
-     #knn
-#     if (!is.null(nbplot()))
-#       plot(nbplot())
-     
-#   })
-   
    
 }
 
