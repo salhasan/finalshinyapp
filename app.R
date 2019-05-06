@@ -105,7 +105,7 @@ server <- function(input, output) {
     
     # plot prediction
     if (!is.null(predicted) )
-      plot(predicted, main = "Prediction",ylim=c(0,y) ,col= distinctColorPalette(k = 1000, altCol = FALSE, runTsne = FALSE),cex.axis=1.5)
+      plot(predicted, main = "Prediction",ylim=c(0,y) ,col= distinctColorPalette(k = 40, altCol = TRUE, runTsne = FALSE),cex.axis=1.5)
     
     actual <- bc_test_label
     cm <- table(predicted,actual)
@@ -129,12 +129,6 @@ server <- function(input, output) {
     
   })
   
-  output$plot_hoverinfo <- renderPrint({
-    cat("Hover (throttled):\n")
-    str(input$plot_hover)
-  })
-  
-   
 }
 
 # Run the application 
