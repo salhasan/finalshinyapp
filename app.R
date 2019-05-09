@@ -11,6 +11,7 @@ library(class)
 library(e1071)
 library(shiny)
 library(randomcoloR)
+library(markdown)
 
 # preprocessing the raw data
 bcancer <- read.csv('https://raw.githubusercontent.com/salhasan/finalshinyapp/master/data.csv')
@@ -27,7 +28,7 @@ bc <- bcancer[sample(nrow(bcancer)),]
 
 #remove all the rows that contain missing data
 bc <- na.omit(bc)
-
+bc_hist <- bc[,-31]
 #normalize the data
 bc_norm <- as.data.frame(apply(bc[, 1:30], 2, function(x) (x - min(x))/(max(x)-min(x))))
 bc_norm$diagnosis <- bc$diagnosis
@@ -36,44 +37,63 @@ bc_norm$diagnosis <- bc$diagnosis
 
 # Define UI for application that draws a plot
 
-ui <- fluidPage(
-  
-  # Application title
-  titlePanel("Breast Cancer Prediction"),
-  
-  sidebarLayout(
-    
-    # Sidebar with a radioButtons and 2 slider inputs
-    sidebarPanel(
-      radioButtons("pm","Machine Learning Prediction Method:",
-                   c("k-Nearest Neighbors" = "KNN",
-                     "Naive Bayes" = "NB",
-                     "Decision Tree C5.0"= "DT")),
-      sliderInput("ptrain", "Percentage of training data:",
-                  min = 0.10, max = 0.99, value = 0.80
-      ),
-      sliderInput("nattrib", "Number of Attributes:",
-                  min = 2, max = 30, value = 15
-      )
-      
-    ),
-    
-    
-    mainPanel(
-      # Show a plot of the generated prediction
-      plotOutput("distPlot"),
-      
-      # Show Confusion Matrix & summary of the generated prediction
-      tabsetPanel(position = "below",
-                  tabPanel("Confusion Matrix", verbatimTextOutput("table")),
-                  tabPanel("Summary", verbatimTextOutput("summary"))
-      )
-    )
-  )
+ui <- navbarPage("Breast Cancer Prediction Application",
+                 tabPanel("Prediction Plot",
+                          sidebarLayout(
+                            
+                            # Sidebar with a radioButtons and 2 slider inputs
+                            sidebarPanel(
+                              radioButtons("pm","Machine Learning Prediction Method:",
+                                           c("k-Nearest Neighbors" = "KNN",
+                                             "Naive Bayes" = "NB",
+                                             "Decision Tree C5.0"= "DT")),
+                              sliderInput("ptrain", "Percentage of training data:",
+                                          min = 0.10, max = 0.99, value = 0.80
+                              ),
+                              sliderInput("nattrib", "Number of Attributes:",
+                                          min = 2, max = 30, value = 15
+                              )
+                              
+                            ),
+                            
+                            
+                            mainPanel(
+                              # Show a plot of the generated prediction
+                              plotOutput("distPlot"),
+                              
+                              # Show Confusion Matrix & summary of the generated prediction
+                              tabsetPanel(
+                                tabPanel("Confusion Matrix", verbatimTextOutput("table")),
+                                tabPanel("Summary", verbatimTextOutput("summary"))
+                              )
+                            )
+                          )
+                 ),
+                 
+                 
+                 tabPanel("Data Exploration",
+                          
+                          sidebarLayout(
+                            sidebarPanel(
+                              selectInput("variable_bc", "Choose an attribute",choices=names(bc_hist))
+                            ),
+                            
+                          
+                          mainPanel(
+                            plotOutput("histPlot")
+                            
+                          )
+                          
+                          ) 
+                          
+                          
+                          
+                 ),
+                 tabPanel("About", includeMarkdown("about.md"))
 )
 
 # Define server logic required to draw a plot
-server <- function(input, output) {
+server <- function(input, output,session) {
   
   # display plot
   output$distPlot <- renderPlot({
@@ -95,12 +115,12 @@ server <- function(input, output) {
     
     # run ML prediction 
     predicted <- switch(input$pm,
-                 KNN = knn(bc_train_data, bc_test_data, bc_train_label,k=4),
-                 NB = predict(naiveBayes(bc_train_data,bc_train_label),bc_test_data ),
-                 DT =  predict(C5.0(x=bc_train_data, y=factor(bc_train_label)), bc_test_data)
-                 )
-   
-     # set y axis size
+                        KNN = knn(bc_train_data, bc_test_data, bc_train_label,k=4),
+                        NB = predict(naiveBayes(bc_train_data,bc_train_label),bc_test_data ),
+                        DT =  predict(C5.0(x=bc_train_data, y=factor(bc_train_label)), bc_test_data)
+    )
+    
+    # set y axis size
     y <- n_test*0.9
     
     # plot prediction
@@ -127,6 +147,12 @@ server <- function(input, output) {
       summarymtx
     })
     
+  })
+  
+  
+  #histogram
+  output$histPlot <- renderPlot({
+    hist(bc_hist[,input$variable_bc])
   })
   
 }
