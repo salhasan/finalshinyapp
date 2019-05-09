@@ -152,7 +152,9 @@ server <- function(input, output,session) {
   
   #histogram
   output$histPlot <- renderPlot({
-    hist(bc_hist[,input$variable_bc])
+    hist(bc_hist[,input$variable_bc], col= distinctColorPalette(k = 40, altCol = TRUE, runTsne = FALSE) )
+    
+    
   })
   
 }
