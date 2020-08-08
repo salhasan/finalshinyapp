@@ -1,27 +1,24 @@
-#
-# This is a Shiny web application. You can run the application by clicking
-# the 'Run App' button above.
-#
-# Find out more about building applications with Shiny here:
-#
-#    http://shiny.rstudio.com/
-#
-library(C50)
-library(class)
-library(e1071)
-library(shiny)
-library(randomcoloR)
-library(markdown)
 
-# preprocessing the raw data
+# load packages
+needed_packages <- c("C50","class" ,"e1071","shiny","markdown")
+missing.packages <- needed_packages[!(needed_packages %in% installed.packages()[,"Package"])]
+if(length(missing.packages)) {
+  install.packages(missing.packages)}
+
+lapply(needed_packages, require,character.only=TRUE)
+
+
+# import and read breast cancer data 
 bcancer <- read.csv('https://raw.githubusercontent.com/salhasan/finalshinyapp/master/data.csv')
 
+# change classification levels from "B" and "M" to "Benign" and "Malignant"
 bcancer$diagnosis <- factor(bcancer$diagnosis,levels=c("B","M"), labels=c("Benign","Malignant"))
 
 
 ##preparing the data. (bc=breast cancer)
 
-#randomly shuffle the rows and select columns
+# set seed 
+# randomly shuffle the rows and select columns
 set.seed(1)
 bc <- bcancer[sample(nrow(bcancer)),]
 
@@ -29,7 +26,8 @@ bc <- bcancer[sample(nrow(bcancer)),]
 #remove all the rows that contain missing data
 bc <- na.omit(bc)
 bc_hist <- bc[,-31]
-#normalize the data
+
+#normalize the data, rescales the range of the data to 0 min and 1 max 
 bc_norm <- as.data.frame(apply(bc[, 1:30], 2, function(x) (x - min(x))/(max(x)-min(x))))
 bc_norm$diagnosis <- bc$diagnosis
 
@@ -125,7 +123,7 @@ server <- function(input, output,session) {
     
     # plot prediction
     if (!is.null(predicted) )
-      plot(predicted, main = "Prediction",ylim=c(0,y) ,col= distinctColorPalette(k = 40, altCol = TRUE, runTsne = FALSE),cex.axis=1.5)
+      plot(predicted, main = "Prediction",ylim=c(0,y) ,col= c("springgreen", "firebrick"),cex.axis=1.5)
     
     actual <- bc_test_label
     cm <- table(predicted,actual)
@@ -142,8 +140,8 @@ server <- function(input, output,session) {
       sensitivity<- round((cm[2,2] / (cm[2,2] + cm[2,1])) * 100, digits = 2)
       specificity <- round((cm[1,1] / (cm[1,1] + cm[1,2])) * 100, digits = 2)
       
-      summarymtx <- matrix(c("Sensitivity", "Specificity", "Accuracy"), ncol = 1, nrow =3)
-      summarymtx <- cbind(summarymtx, c(sensitivity,specificity,accuracy))
+      summarymtx <- matrix(c(sensitivity,specificity,accuracy), ncol = 1, nrow =3)
+      dimnames(summarymtx) <- list(c("Sensitivity", "Specificity", "Accuracy"), "Percentage")
       summarymtx
     })
     
@@ -152,8 +150,8 @@ server <- function(input, output,session) {
   
   #histogram
   output$histPlot <- renderPlot({
-    hist(bc_hist[,input$variable_bc], col= distinctColorPalette(k = 40, altCol = TRUE, runTsne = FALSE) )
     
+    hist(bc_hist[,input$variable_bc], main= paste(input$variable_bc, "histogram") , xlab = input$variable_bc ,col= "lightblue" )
     
   })
   
